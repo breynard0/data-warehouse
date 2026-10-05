@@ -256,7 +256,10 @@ WITH program_windows AS (
         ('wrangler', TIMESTAMP WITH TIME ZONE '2026-08-10 00:00:00+00',
                    TIMESTAMP WITH TIME ZONE '2026-09-30 00:00:00+00'),
         ('playground', TIMESTAMP WITH TIME ZONE '2026-09-25 00:00:00 America/New_York',
-                   TIMESTAMP WITH TIME ZONE '2026-10-12 00:00:00 America/New_York')
+                   TIMESTAMP WITH TIME ZONE '2026-10-12 00:00:00 America/New_York'),
+        ('genesis', TIMESTAMP WITH TIME ZONE '2026-09-23 00:00:00+00',
+                   NULL::timestamptz)
+    
     ) AS t(program_name, start_at, end_at_exclusive)
 ),
 
@@ -1724,6 +1727,21 @@ wrangler_ht_claims AS (
     WHERE url LIKE '%/project/%'
 ),
 
+genesis_ht_claims AS (
+    SELECT 'genesis'::text AS program_name,
+        CASE WHEN POSITION('@' IN LOWER(BTRIM(hp."author"))) > 0
+             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(hp."author")), '@', 1), '+', 1)
+                  || '@' || SPLIT_PART(LOWER(BTRIM(hp."author")), '@', 2)
+             ELSE SPLIT_PART(LOWER(BTRIM(hp."author")), '+', 1)
+        END AS user_email,
+        LOWER(BTRIM(hp."project_name")) AS hackatime_alias,
+        NULL::text AS project_name,
+        NULL::text AS code_url,
+        hp."created" AT TIME ZONE 'UTC' AS claim_start_ts
+    FROM {{ source('airtable_genesis', 'projects_in_progress') }} hp
+    WHERE hp."project_name" IS NOT NULL AND hp."project_name" <> ''
+),
+
 all_claims_raw AS (
     SELECT * FROM stardance_ht_claims
     UNION ALL SELECT * FROM flavortown_ht_claims
@@ -1749,6 +1767,7 @@ all_claims_raw AS (
     UNION ALL SELECT * FROM thirdspace_ht_claims
     UNION ALL SELECT * FROM wrangler_ht_claims
     UNION ALL SELECT * FROM playground_ht_claims
+    UNION ALL SELECT * FROM genesis_ht_claims
 ),
 
 all_claims AS (
