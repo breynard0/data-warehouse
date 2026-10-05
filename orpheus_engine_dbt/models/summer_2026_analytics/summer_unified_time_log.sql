@@ -1729,16 +1729,19 @@ wrangler_ht_claims AS (
 
 genesis_ht_claims AS (
     SELECT 'genesis'::text AS program_name,
-        CASE WHEN POSITION('@' IN LOWER(BTRIM(hp."author"))) > 0
-             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(hp."author")), '@', 1), '+', 1)
-                  || '@' || SPLIT_PART(LOWER(BTRIM(hp."author")), '@', 2)
-             ELSE SPLIT_PART(LOWER(BTRIM(hp."author")), '+', 1)
+        CASE WHEN POSITION('@' IN LOWER(BTRIM(m.hackatime_first_email))) > 0
+             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '@', 1), '+', 1)
+                  || '@' || SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '@', 2)
+             ELSE SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '+', 1)
         END AS user_email,
         LOWER(BTRIM(hp."project_name")) AS hackatime_alias,
         NULL::text AS project_name,
         NULL::text AS code_url,
         hp."created" AT TIME ZONE 'UTC' AS claim_start_ts
     FROM {{ source('airtable_genesis', 'projects_in_progress') }} hp
+    JOIN {{ source('hackatime_raw', 'users') }} hu
+        ON LOWER(hu.username) = LOWER(BTRIM(hp."author"))
+    JOIN beest_htid_email m ON m.hackatime_user_id = hu.id
     WHERE hp."project_name" IS NOT NULL AND hp."project_name" <> ''
 ),
 
