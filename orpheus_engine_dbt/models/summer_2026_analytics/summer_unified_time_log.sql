@@ -1637,20 +1637,28 @@ half_life_custom_hourly AS (
     GROUP BY 1, 2, 3, 4, 5
 ),
 
+-- crescent links Hackatime by users.hackatime_id (NOT email: the Hack Club Auth
+-- email often differs from the Hackatime one), one alias per
+-- project_hackatime_links row. Each project belongs to the program week it was
+-- made in (weeks start Monday 00:00 UTC), so a claim starts at that week's Monday.
 crescent_ht_claims AS (
     SELECT 'crescent'::text AS program_name,
-        CASE WHEN POSITION('@' IN LOWER(BTRIM(u."email"))) > 0
-             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(u."email")), '@', 1), '+', 1)
-                  || '@' || SPLIT_PART(LOWER(BTRIM(u."email")), '@', 2)
-             ELSE SPLIT_PART(LOWER(BTRIM(u."email")), '+', 1)
+        CASE WHEN POSITION('@' IN LOWER(BTRIM(m.hackatime_first_email))) > 0
+             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '@', 1), '+', 1)
+                  || '@' || SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '@', 2)
+             ELSE SPLIT_PART(LOWER(BTRIM(m.hackatime_first_email)), '+', 1)
         END AS user_email,
         LOWER(BTRIM(hp."hackatime_project_name")) AS hackatime_alias,
-        NULL::text AS project_name,
-        NULL::text AS code_url,
-        hp."created_at" AT TIME ZONE 'UTC' AS claim_start_ts
+        p."title"::text AS project_name,
+        NULLIF(BTRIM(p."repo_url"), '')::text AS code_url,
+        DATE_TRUNC('week', p."created_at") AT TIME ZONE 'UTC' AS claim_start_ts
     FROM {{ source('crescent', 'project_hackatime_links') }} hp
+    JOIN {{ source('crescent', 'projects') }} p ON p."id" = hp."project_id"
     JOIN {{ source('crescent', 'users') }} u ON u."id" = hp."user_id"
-    WHERE hp."hackatime_project_name" IS NOT NULL AND hp."hackatime_project_name" <> ''
+    JOIN ht_user_email m ON m.hackatime_user_id::text = u."hackatime_id"
+    WHERE p."deleted_at" IS NULL
+      AND u."deleted_at" IS NULL
+      AND hp."hackatime_project_name" IS NOT NULL AND BTRIM(hp."hackatime_project_name") <> ''
 ),
 
 snowglobe_ht_claims AS (
