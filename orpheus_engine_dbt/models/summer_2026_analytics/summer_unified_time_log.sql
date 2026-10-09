@@ -262,7 +262,10 @@ WITH program_windows AS (
         ('genesis', TIMESTAMP WITH TIME ZONE '2026-09-23 00:00:00+00',
                    NULL::timestamptz),
         ('fabricate', TIMESTAMP WITH TIME ZONE '2026-09-30 00:00:00+00',
-                   NULL::timestamptz)
+                   NULL::timestamptz),
+        ('wrong_tool', TIMESTAMP WITH TIME ZONE '2026-10-06 00:00:00+00',
+                   TIMESTAMP WITH TIME ZONE '2026-10-21 00:00:00+00')
+    
     ) AS t(program_name, start_at, end_at_exclusive)
 ),
 
@@ -1775,6 +1778,32 @@ genesis_ht_claims AS (
     WHERE hp."project_name" IS NOT NULL AND hp."project_name" <> ''
 ),
 
+-- wrong tool counts only the Hackatime projects linked to someone's wrong tool project
+-- (projects.hackatime_projects, a JSON array of names), never their other Hackatime time.
+-- Users link Hackatime by users.hackatime_uid (NOT email: the Hack Club Auth email often
+-- differs from the Hackatime one), falling back to users.email when Hackatime has no email.
+-- Linking a project counts its time from the start of wrong tool (every day is rebuilt), so
+-- every claim starts on 2026-10-06.
+wrong_tool_ht_claims AS (
+    SELECT 'wrong_tool'::text AS program_name,
+        CASE WHEN POSITION('@' IN LOWER(BTRIM(COALESCE(m.hackatime_first_email, u.email)))) > 0
+             THEN SPLIT_PART(SPLIT_PART(LOWER(BTRIM(COALESCE(m.hackatime_first_email, u.email))), '@', 1), '+', 1)
+                  || '@' || SPLIT_PART(LOWER(BTRIM(COALESCE(m.hackatime_first_email, u.email))), '@', 2)
+             ELSE SPLIT_PART(LOWER(BTRIM(COALESCE(m.hackatime_first_email, u.email))), '+', 1)
+        END AS user_email,
+        LOWER(BTRIM(alias.alias_text)) AS hackatime_alias,
+        NULLIF(BTRIM(p.name), '')::text AS project_name,
+        NULLIF(BTRIM(p.repo_url), '')::text AS code_url,
+        TIMESTAMP WITH TIME ZONE '2026-10-06 00:00:00+00' AS claim_start_ts
+    FROM {{ source('wrong_tool', 'projects') }} p
+    JOIN {{ source('wrong_tool', 'users') }} u ON u.id = p.user_id
+    LEFT JOIN ht_user_email m ON m.hackatime_user_id::text = u.hackatime_uid
+    CROSS JOIN LATERAL JSON_ARRAY_ELEMENTS_TEXT(p.hackatime_projects::json) AS alias(alias_text)
+    WHERE p.hackatime_projects IS NOT NULL
+      AND alias.alias_text IS NOT NULL AND BTRIM(alias.alias_text) <> ''
+      AND COALESCE(m.hackatime_first_email, u.email) IS NOT NULL
+),
+
 all_claims_raw AS (
     SELECT * FROM stardance_ht_claims
     UNION ALL SELECT * FROM flavortown_ht_claims
@@ -1802,6 +1831,7 @@ all_claims_raw AS (
     UNION ALL SELECT * FROM playground_ht_claims
     UNION ALL SELECT * FROM terra_ht_claims
     UNION ALL SELECT * FROM genesis_ht_claims
+    UNION ALL SELECT * FROM wrong_tool_ht_claims
 ),
 
 all_claims AS (
