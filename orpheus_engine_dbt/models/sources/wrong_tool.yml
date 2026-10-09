@@ -1,0 +1,42 @@
+version: 2
+
+sources:
+  - name: wrong_tool
+    schema: wrong_tool
+    tables:
+      - name: active_storage_attachments
+        description: "Wrong Tool active_storage_attachments table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: active_storage_blobs
+        description: "Wrong Tool active_storage_blobs table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: active_storage_variant_records
+        description: "Wrong Tool active_storage_variant_records table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: buddy_pomodoros
+        description: "Wrong Tool buddy_pomodoros table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: metric_snapshots
+        description: "Wrong Tool metric_snapshots table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: nudges
+        description: "Wrong Tool nudges table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: pairs
+        description: "Wrong Tool pairs table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: projects
+        description: "Wrong Tool projects table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: rewards
+        description: "Wrong Tool rewards table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: ships
+        description: "Wrong Tool ships table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: streak_activities
+        description: "Wrong Tool streak_activities table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
+      - name: users
+        description: "Wrong Tool users table."
+        meta: {dagster: {deps: [wrong_tool_warehouse_mirror]}}
